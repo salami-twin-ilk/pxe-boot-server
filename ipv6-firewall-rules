@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "Loading IPv6 firewall rules"
+ip6tables-restore < /etc/ip6tables.rules

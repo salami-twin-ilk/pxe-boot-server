@@ -1,0 +1,28 @@
+# This file describes the network interfaces available on your system
+# and how to activate them. For more information, see interfaces(5).
+
+source /etc/network/interfaces.d/*
+
+# The loopback network interface
+auto lo
+iface lo inet loopback
+
+
+# {{ internet_network_interface[0].comment }}
+allow-hotplug {{ internet_network_interface[0].name }}
+iface {{ internet_network_interface[0].name }} inet {{ internet_network_interface[0].ipv4_address[0].type }}
+{% if internet_network_interface[0].ipv4_address[0].type == "static" %}
+   address {{ internet_network_interface[0].ipv4_address[0].address }}
+   netmask {{ internet_network_interface[0].ipv4_address[0].netmask }}
+   gateway {{ internet_network_interface[0].ipv4_address[0].gateway }}
+{% endif %}
+
+
+# {{ pxe_network_interface[0].comment }}
+allow-hotplug {{ pxe_network_interface[0].name }}
+iface {{ pxe_network_interface[0].name }} inet {{ pxe_network_interface[0].ipv4_address[0].type }}
+{% if pxe_network_interface[0].ipv4_address[0].type == "static" %}
+   address {{ pxe_network_interface[0].ipv4_address[0].address }}
+   netmask {{ pxe_network_interface[0].ipv4_address[0].netmask }}
+{% endif %}
+

@@ -1,0 +1,151 @@
+---
+#
+
+- name: "Create PXE boot server"
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    internet_network_interface:
+      - name: "ens3"
+        comment: "Internet uplink"
+        ipv4_address:
+          - type: "dhcp"
+    pxe_network_interface:
+      - name: "ens8"
+        comment: "PXE boot network"
+        ipv4_address:
+          - type: "static"
+            address: "192.168.225.1"
+            netmask: "24"
+    pxe_dhcp_range:
+      - lower: "192.168.225.100"
+        upper: "192.168.225.250"
+
+#    netboot_package: "http://ftp.nl.debian.org/debian/dists/stretch/main/installer-amd64/current/images/netboot/netboot.tar.gz"
+#    netboot_package: "http://ftp.nl.debian.org/debian/dists/testing/main/installer-amd64/current/images/netboot/netboot.tar.gz"
+    netboot_package: "http://ftp.nl.debian.org/debian/dists/stable/main/installer-amd64/current/images/netboot/netboot.tar.gz"
+#    netboot_package: "netboot.tar.gz"
+
+    tftp_dir: "/srv/tftp"
+
+
+  tasks:
+    - name: "Install templated /etc/network/interfaces"
+      template:
+        src: "interfaces.jinja2"
+        dest: "/etc/network/interfaces"
+        owner: root
+        group: root
+        mode: 0644
+        backup: yes
+
+    - name: "Install templated IPv4 firewall rules"
+      template:
+        src: "iptables.rules.jinja2"
+        dest: "/etc/iptables.rules"
+        owner: root
+        group: root
+        mode: 0644
+        backup: yes
+
+    - name: "Install templated IPv6 firewall rules"
+      template:
+        src: "ip6tables.rules.jinja2"
+        dest: "/etc/ip6tables.rules"
+        owner: root
+        group: root
+        mode: 0644
+        backup: yes
+
+    - name: "Install IPv4 firewall rules load script"
+      template:
+        src: "ipv4-firewall-rules"
+        dest: "/etc/network/if-pre-up.d/ipv4-firewall-rules"
+        owner: root
+        group: root
+        mode: 0755
+        backup: yes
+
+    - name: "Install IPv6 firewall rules load script"
+      template:
+        src: "ipv6-firewall-rules"
+        dest: "/etc/network/if-pre-up.d/ipv6-firewall-rules"
+        owner: root
+        group: root
+        mode: 0755
+        backup: yes
+
+    - name: "Bring down Internet network interfaces"
+      command: "ifdown {{ internet_network_interface[0].name }}"
+
+    - name: "Bring up Internet network interfaces"
+      command: "ifup {{ internet_network_interface[0].name }}"
+
+    - name: "Bring down PXE network interfaces"
+      command: "ifdown {{ pxe_network_interface[0].name }}"
+
+    - name: "Bring up PXE network interfaces"
+      command: "ifup {{ pxe_network_interface[0].name }}"
+
+    - name: "Install dnsmasq"
+      apt:
+        name: "dnsmasq"
+        state: present
+        update_cache: yes
+        cache_valid_time: 3600
+
+    - name: "Install templated /etc/dnsmasq.conf"
+      template:
+        src: "dnsmasq.conf.jinja2"
+        dest: "/etc/dnsmasq.conf"
+        owner: root
+        group: root
+        mode: 0644
+        backup: yes
+
+    - name: "Create TFTP server content directory"
+      file:
+        path: "{{ tftp_dir }}"
+        recurse: yes
+        state: directory
+
+    - name: "Enable and restart dnsmasq"
+      service:
+        name: "dnsmasq"
+        daemon-reload: yes
+        enabled: yes
+        state: restarted
+
+    - name: "Download and extract netboot package contents to {{ tftp_dir }}"
+      unarchive:
+        remote_src: yes
+        src: "{{ netboot_package }}"
+        dest: "{{ tftp_dir }}"
+        owner: root
+        group: root
+
+    - name: "Installed modified txt.cfg menu in netboot"
+      copy:
+        src: "txt.cfg"
+        dest: "{{ tftp_dir }}/debian-installer/amd64/boot-screens/txt.cfg"
+        owner: root
+        group: root
+        mode: 0644
+        backup: yes
+
+    - name: "Enable IPv4 forwarding in /etc/sysctl.conf"
+      sysctl:
+        name: net.ipv4.ip_forward
+        value: 1
+        state: present
+        reload: yes
+
+    - name: "Enable IPv6 forwarding in /etc/sysctl.conf"
+      sysctl:
+        name: net.ipv6.conf.all.forwarding
+        value: 1
+        state: present
+        reload: yes
+

@@ -1,0 +1,4 @@
+#!/bin/sh
+
+echo "Loading IPv4 firewall rules"
+iptables-restore < /etc/iptables.rules

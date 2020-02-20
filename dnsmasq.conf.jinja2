@@ -1,0 +1,6 @@
+interface={{ pxe_network_interface[0].name }}
+bind-interfaces
+dhcp-range={{ pxe_dhcp_range[0].lower }},{{ pxe_dhcp_range[0].upper }},12h
+dhcp-boot=pxelinux.0
+enable-tftp
+tftp-root={{ tftp_dir }}
